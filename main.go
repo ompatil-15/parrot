@@ -5,11 +5,17 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"syscall"
-	"time"
 )
 
 func main() {
+	// Start pprof server
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
 	port := flag.Int("port", 1512, "Port to listen on")
 	flag.Parse()
 
@@ -60,6 +66,9 @@ func main() {
 		log.Fatalf("Failed to register kevent: %v", err)
 	}
 
+	// Buffer for reading (reused)
+	buf := make([]byte, 1024)
+
 	// Event Loop
 	events := make([]syscall.Kevent_t, 20)
 	for {
@@ -78,7 +87,7 @@ func main() {
 
 			if fd == serverFD {
 				// Accept new connection
-				connFD, sa, err := syscall.Accept(serverFD)
+				connFD, _, err := syscall.Accept(serverFD)
 				if err != nil {
 					log.Printf("Accept failed: %v", err)
 					continue
@@ -100,13 +109,8 @@ func main() {
 					continue
 				}
 
-				// Log connection
-				remoteAddr := sockAddrToString(sa)
-				fmt.Printf("New connection from %s\n", remoteAddr)
-
 			} else if event.Filter == syscall.EVFILT_READ {
 				// Read from client
-				buf := make([]byte, 1024)
 				nRead, err := syscall.Read(fd, buf)
 				if err != nil || nRead == 0 {
 					// EOF or Error
@@ -114,10 +118,10 @@ func main() {
 					continue
 				}
 
-				// Log message (CLF)
-				remoteAddr := getPeerName(fd)
-				timestamp := time.Now().Format("02/Jan/2006:15:04:05 -0700")
-				fmt.Printf("%s - - [%s] %q\n", remoteAddr, timestamp, string(buf[:nRead]))
+				// Log message
+				// remoteAddr := getPeerName(fd)
+				// timestamp := time.Now().Format("02/Jan/2006:15:04:05 -0700")
+				// fmt.Printf("%s - - [%s] %q\n", remoteAddr, timestamp, string(buf[:nRead]))
 
 				// Echo back
 				_, err = syscall.Write(fd, buf[:nRead])
