@@ -6,9 +6,16 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 )
 
 func main() {
+	// Start pprof server
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
 	port := flag.Int("port", 1513, "Port to listen on")
 	flag.Parse()
 
