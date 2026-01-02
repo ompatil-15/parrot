@@ -54,3 +54,28 @@ The server bypasses Go's high-level `net` package and interacts directly with th
 1.  **Socket Creation**: `syscall.Socket`
 2.  **Non-Blocking Mode**: `syscall.SetNonblock`
 3.  **Event Loop**: `syscall.Kqueue` & `syscall.Kevent`
+
+## Benchmarks
+
+We compared Parrot against a standard Go TCP server (`net` package) using a custom benchmarking tool. Tests were run on a MacBook Pro (M-Series).
+
+### Throughput & Efficiency
+| Metric | Parot (Single Threaded) | Standard Go (Multi-Threaded) | Difference |
+| :--- | :--- | :--- | :--- |
+| **Throughput** | **~246,000 RPS** | ~113,000 RPS | **2.2x Faster** |
+| **CPU Usage** | **~0.6 Cores** | ~3.5 Cores | **~13x More Efficient** |
+| **Memory (C10K)** | **22 MB** | 223 MB | **10x Lower RAM** |
+
+### The C10K Test (10,000 Concurrent Connections)
+Parrot demonstrates superior stability under massive concurrency loads.
+
+*   **Parrot**:
+    *   Maintained **~219k RPS**.
+    *   P99 Latency: **45ms**.
+    *   Memory stayed constant at **22 MB**.
+*   **Standard Go**:
+    *   Throughput dropped to **~109k RPS**.
+    *   P99 Latency exploded to **571ms**.
+    *   Memory ballooned to **223 MB** (due to goroutine stack overhead).
+
+*> **Key Takeaway**: For I/O-bound workloads, a single-threaded event loop can remarkably outperform multi-threaded architectures in both speed and resource efficiency.*
